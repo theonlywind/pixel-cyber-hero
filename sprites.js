@@ -1,0 +1,112 @@
+window.SPRITES = {
+  guide: [
+    'kkkkkkkkkkkk',
+    'kbbbbbbbbbbk',
+    'kbbkkbbkkbbk',
+    'kbbkkbbkkbbk',
+    'kbbbbbbbbbbk',
+    'kbwbbbbbbwbk',
+    'kbbkbbbbkbbk',
+    '.kbbkkkkbbk.',
+    '..kbbbbbbk..',
+    '...kbbbbk...',
+    '....kbbk....',
+    '.....kk.....'
+  ].map(r => r.replace(/k/g, (m, i) => 'w')),
+  slime: [
+    '....kkkk....',
+    '..kkggggkk..',
+    '.kggggggggk.',
+    'kggkkggkkggk',
+    'kggkkggkkggk',
+    'kggggggggggk',
+    'kgggkkkkgggk',
+    '.kkkkkkkkkk.'
+  ],
+  phish: [
+    '....kkkk....',
+    '..kkrrrrkk..',
+    '.krrrrrrrrk.',
+    'krrwwrrwwrrk',
+    'krrwkrrkwrrk',
+    'krrrrrrrrrrk',
+    'krkkkkkkkkrk',
+    'krwkwkwkwkrk',
+    '.krrrrrrrrk.',
+    '..kkkkkkkk..',
+    '....kyyk....',
+    '....k..k....'
+  ],
+  ghost: [
+    '...kkkkkk...',
+    '.kkwwwwwwkk.',
+    'kwwwwwwwwwwk',
+    'kwwkkwwkkwwk',
+    'kwwkkwwkkwwk',
+    'kwwwwwwwwwwk',
+    'kwwwkkkkwwwk',
+    'kwwwwwwwwwwk',
+    'kwwwwwwwwwwk',
+    'kwkwwkwwkwwk',
+    'kkkkkkkkkkkk'
+  ],
+  robot: [
+    '.....kk.....',
+    '.....yk.....',
+    '..kkkkkkkk..',
+    '.kGGGGGGGGk.',
+    '.kGccGGccGk.',
+    '.kGccGGccGk.',
+    '.kGGGGGGGGk.',
+    '.kGkkkkkkGk.',
+    '..kkkkkkkk..',
+    '.kGGGGGGGGk.',
+    '.kGGkGGkGGk.',
+    '..kk....kk..'
+  ],
+  boss: [
+    '...kkkkkk...',
+    '..kppppppk..',
+    '.kppppppppk.',
+    '.kpkkkkkkpk.',
+    '.kpkrkkrkpk.',
+    '.kpkkkkkkpk.',
+    '.kppppppppk.',
+    'kppkppppkppk',
+    'kpppkkkkpppk',
+    '.kppppppppk.',
+    '..kk....kk..'
+  ],
+  heart: [
+    '.rr..rr.',
+    'rrrrrrrr',
+    'rrrrrrrr',
+    'rrrrrrrr',
+    '.rrrrrr.',
+    '..rrrr..',
+    '...rr...'
+  ],
+  star: [
+    '....y....',
+    '...yyy...',
+    'yyyyyyyyy',
+    '.yyyyyyy.',
+    '..yyyyy..',
+    '.yyy.yyy.',
+    '.yy...yy.'
+  ],
+  drop: ['..g..', '.ggg.', 'ggggg', 'ggggg', '.ggg.'],
+  hook: ['.yyy.', '...y.', '...y.', 'y..y.', '.yy..'],
+  foot: ['.ww.', 'wwww', 'wwww', '.ww.', '.ww.', '..w.'],
+  bolt: ['.c.c.', 'ccccc', '.cGc.', 'ccccc', '.c.c.'],
+  lock: [
+    '..GGGG..',
+    '.G....G.',
+    '.G....G.',
+    'GGGGGGGG',
+    'GGGddGGG',
+    'GGGddGGG',
+    'GGGGGGGG',
+    'GGGGGGGG'
+  ]
+};
