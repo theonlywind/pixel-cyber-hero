@@ -169,3 +169,5 @@ body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; -we
   .pin .tag { font-size: 16px; }
   .title h1 { font-size: 52px; }
 }
+/* iPad 橫放：高度有限，縮細舞台同閃避區，免得要捲動 */
+@media (min-width: 700px) and (max-height: 860px) { .stage { min-height: 230px; } .arena { max-width: 400px; } }
