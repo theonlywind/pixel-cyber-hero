@@ -316,6 +316,7 @@
     const pm = e => {
       const r = cv.getBoundingClientRect();
       P.x = (e.clientX - r.left) * W / r.width; P.y = (e.clientY - r.top) * H / r.height;
+      if (e.pointerType === 'touch') P.y -= 36; // 紅心放在手指上方，唔會被手指遮住
     };
     A.music('dodge');
     document.addEventListener('keydown', kd); document.addEventListener('keyup', ku);

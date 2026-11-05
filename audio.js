@@ -171,6 +171,9 @@ window.Audio8 = (() => {
   const unlock = () => api.unlock();
   document.addEventListener('pointerdown', unlock);
   document.addEventListener('keydown', unlock);
+  // iOS Safari 只認 click / touchend 為解鎖音訊的手勢，pointerdown 不夠
+  document.addEventListener('touchend', unlock);
+  document.addEventListener('click', unlock);
   document.addEventListener('visibilitychange', () => {
     if (!ac) return;
     if (document.hidden) ac.suspend(); else ac.resume();

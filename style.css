@@ -6,7 +6,8 @@ body {
   image-rendering: pixelated; -webkit-font-smoothing: none;
 }
 button { font: inherit; color: inherit; background: #000; border: 4px solid #fff; padding: 6px 14px; cursor: pointer; border-radius: 0; }
-button:hover, button:focus-visible { color: #facc15; border-color: #facc15; outline: none; }
+button:focus-visible { color: #facc15; border-color: #facc15; outline: none; }
+@media (hover: hover) { button:hover { color: #facc15; border-color: #facc15; } }
 button:disabled { cursor: default; opacity: .9; }
 .spr { image-rendering: pixelated; display: block; }
 
@@ -149,4 +150,22 @@ button:disabled { cursor: default; opacity: .9; }
   body { font-size: 16px; }
   .title h1 { font-size: 30px; }
   .two { flex-direction: column; }
+}
+
+/* iPad / 觸控 */
+html { -webkit-text-size-adjust: 100%; }
+body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+.box, .stage, .worldmap, .cards, .opts { -webkit-user-select: none; user-select: none; }
+#app { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); padding-bottom: max(32px, env(safe-area-inset-bottom)); }
+@media (min-width: 700px) {
+  #app { max-width: 960px; }
+  body { font-size: 22px; }
+  button { min-height: 48px; }
+  .post .seg, .pin { min-height: 0; }
+  .stage { min-height: 300px; }
+  .arena { max-width: 560px; }
+  .arena.scene { max-width: 640px; }
+  .opt, .card, .mt { min-height: 52px; }
+  .pin .tag { font-size: 16px; }
+  .title h1 { font-size: 52px; }
 }
