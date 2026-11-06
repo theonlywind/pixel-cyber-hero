@@ -101,8 +101,8 @@
     const sp = h('div', 'sprs');
     sp.append(sprite('guide', 8), sprite('slime', 6), sprite('phish', 6));
     s.append(sp);
-    const lab = h('label', '', '你的名字');
-    const inp = h('input'); inp.maxLength = 8; inp.value = S.name; inp.placeholder = '小勇者';
+    const lab = h('label', '', '請輸入你的名字');
+    const inp = h('input'); inp.maxLength = 8; inp.value = S.name;
     lab.append(inp); s.append(lab);
     const gr = h('div', 'grades'); gr.append(h('span', '', '年級'));
     const bs = [[3, 'P3-P4'], [5, 'P5-P6']].map(([g, t]) => {
@@ -113,8 +113,7 @@
     s.append(gr);
     const go = h('button', '', '♥ 開始冒險');
     go.onclick = () => { S.name = inp.value.trim().slice(0, 8) || '小勇者'; save(); A.sfx('select'); if (S.seen && Object.keys(S.done).length) showHub(); else prologue(); };
-    s.append(go, h('p', 'hint', '按空白鍵、Enter，或者點擊畫面繼續對話。'),
-      h('p', 'credit', '像素風格受經典 RPG 啟發，角色與圖像均為原創。'));
+    s.append(go);
     app.append(s);
   }
 
@@ -133,23 +132,26 @@
     bar.append(h('span', 'ttl', S.name + ' 的冒險地圖（' + (S.grade >= 5 ? 'P5-P6' : 'P3-P4') + '）'));
     const got = C.levels.filter(l => S.done[l.id] > 0).length;
     const sh = h('div', 'shards');
-    for (let i = 0; i < 4; i++) { const c = sprite('shard', 3); if (i >= got) c.style.opacity = '.2'; sh.append(c); }
-    sh.append(h('span', 'hint', '安全之鑰碎片 ' + got + ' / 4' + (got === 4 ? '　黑客熊在最終關等你！' : '')));
+    for (let i = 0; i < C.levels.length; i++) { const c = sprite('shard', 3); if (i >= got) c.style.opacity = '.2'; sh.append(c); }
+    sh.append(h('span', 'hint', '安全之鑰碎片 ' + got + ' / ' + C.levels.length + (got === C.levels.length ? '　黑客熊在最終關等你！' : '')));
     s.append(bar, sh);
     const allDone = C.levels.every(l => S.done[l.id] > 0);
     const NODES = Maps.nodes;
     const wm = h('div', 'worldmap');
     const mc = Maps.world({ done: S.done, levels: C.levels, allDone });
     mc.className = 'wmcv'; wm.append(mc);
-    const open = i => i === 0 || (i < 4 ? S.done[C.levels[i - 1].id] > 0 : allDone);
-    const curI = (() => { const i = C.levels.findIndex(l => !(S.done[l.id] > 0)); return i < 0 ? 4 : i; })();
+    const open = i => i === 0 || (i < C.levels.length ? S.done[C.levels[i - 1].id] > 0 : allDone);
+    const curI = (() => { const i = C.levels.findIndex(l => !(S.done[l.id] > 0)); return i < 0 ? C.levels.length : i; })();
     NODES.forEach((p, i) => {
       const L = C.levels[i], unlocked = open(i);
       const b = h('button', 'pin' + (unlocked ? '' : ' locked'));
       b.style.left = p.x / 240 * 100 + '%'; b.style.top = p.y / 160 * 100 + '%';
       const n = L ? (S.done[L.id] || 0) : 0;
-      const label = !unlocked ? '？？？' : L ? '第' + L.id + '關 ' + L.title + (n ? ' ' + '★'.repeat(n) : '') : '最終關 ' + C.boss.name;
-      b.append(h('span', 'tag', label));
+      const label = !unlocked ? '？？？' : L ? '第' + L.id + '關 ' + (L.short || L.title) + (n ? ' ' + '★'.repeat(n) : '') : '最終關 ' + C.boss.name;
+      const tag = h('span', 'tag');
+      if (!unlocked) tag.textContent = label;
+      else tag.append(h('span', '', L ? '第' + L.id + '關' : '最終關'), h('span', 'nm', ' ' + (L ? L.short || L.title : C.boss.name)), h('span', '', n ? ' ' + '★'.repeat(n) : ''));
+      b.append(tag);
       b.setAttribute('aria-label', label);
       if (unlocked) b.onclick = () => { A.sfx('select'); if (L) playLevel(i); else playBoss(); };
       wm.append(b);
@@ -206,12 +208,12 @@
     const stage = h('div', 'stage');
     if (ctx.bg) { stage.style.backgroundImage = 'url(' + Maps.backdrop(ctx.bg) + ')'; stage.classList.add('bgd'); }
     ctx.slots = {};
-    [['guide', 'guide', 6, '小盾'], ['mon', monKey, 8, monName]].forEach(([k, spr, sc, nm]) => {
+    [['guide', 'guide', 6, S.name || '小勇者'], ['mon', monKey, 8, monName]].forEach(([k, spr, sc, nm]) => {
       const sl = h('div', 'slot'); sl.append(sprite(spr, sc), h('div', 'nm', nm));
       if (k === 'mon' && ctx.mTotal) { const mb = h('div', 'mhp'); ctx.mfill = h('i'); mb.append(ctx.mfill); sl.append(mb); }
       stage.append(sl); ctx.slots[k] = sl;
     });
-    ctx.names = { guide: '小盾', mon: monName, me: S.name || '小勇者' };
+    ctx.names = { guide: S.name || '小勇者', mon: monName, me: S.name || '小勇者' };
     ctx.box = h('div', 'box');
     ctx.stage = stage;
     s.append(bar, stage, ctx.box);
@@ -220,6 +222,7 @@
   }
 
   function setSpeaker(ctx, who) {
+    if (who === 'me') who = 'guide';
     voice = who === 'guide' ? 560 : who === 'mon' ? (ctx.voice || 300) : 440;
     Object.entries(ctx.slots).forEach(([k, el]) => { el.classList.toggle('dim', who !== k && who != null); el.classList.toggle('talk', who === k); });
   }
@@ -292,7 +295,7 @@
 
   /* ---------- dodge mini-game ---------- */
 
-  const BSPR = { slime: ['drop'], phish: ['hook'], ghost: ['foot'], robot: ['bolt'], boss: ['drop', 'hook', 'foot', 'bolt'] };
+  const BSPR = { slime: ['drop'], phish: ['hook'], ghost: ['foot'], troll: ['bub'], robot: ['bolt'], boss: ['drop', 'hook', 'foot', 'bub', 'bolt'] };
   const bcache = {};
   const bimg = n => bcache[n] || (bcache[n] = sprite(n, 1));
   let tipShown = false;
@@ -338,7 +341,7 @@
     skip.onclick = () => fin(true);
 
     const spawnOne = () => {
-      const kind = theme === 'boss' ? ['slime', 'phish', 'ghost', 'robot'][Math.floor(Math.random() * 4)] : theme;
+      const kind = theme === 'boss' ? ['slime', 'phish', 'ghost', 'troll', 'robot'][Math.floor(Math.random() * 5)] : theme;
       const name = BSPR[kind][0];
       const o = { img: bimg(name), sc: 4, kind, seed: Math.random() * 6, x: 0, y: 0, vx: 0, vy: 0, sway: 0 };
       o.w = o.img.width * o.sc; o.h = o.img.height * o.sc;
@@ -394,9 +397,9 @@
   }
 
   function stepBox(ctx) {
-    setSpeaker(ctx, 'guide');
+    setSpeaker(ctx, null);
     const b = ctx.box; b.innerHTML = ''; b.onclick = null; onAdvance = null;
-    b.append(h('div', 'spk', '小盾'), h('div', 'txt'));
+    b.append(h('div', 'spk', ''), h('div', 'txt'));
     return b;
   }
   function tapNext(b, next) {
@@ -410,11 +413,11 @@
       const go = () => say(ctx, 'mon', s.x, () => dodge(ctx, s, next));
       if (tipShown) return go();
       tipShown = true;
-      say(ctx, 'guide', '小心！要躲開攻擊了。移動小紅心，避開所有東西。被擊中會扣 2 點 HP。', go);
+      say(ctx, null, '小心！要躲開攻擊了。移動小紅心，避開所有東西。被擊中會扣 2 點 HP。', go);
     },
     ask: (ctx, s, next) => {
       const opts = shuffle(s.o.map(o => ({ t: o[0], ok: !!o[1], why: o[2] })));
-      ask(ctx, 'guide', s.x, opts, next);
+      ask(ctx, null, s.x, opts, next);
     },
     sort: (ctx, s, next) => {
       const items = shuffle(s.i);
@@ -423,7 +426,7 @@
         if (k >= items.length) return next();
         const it = items[k++];
         const opts = [{ t: s.l, ok: it[1] === 0, why: it[2] }, { t: s.r, ok: it[1] === 1, why: it[2] }];
-        ask(ctx, 'guide', s.x + '（' + k + '/' + items.length + '）\n\n「' + it[0] + '」', opts, () => ctx.dead ? gameOver(ctx, ctx.li) : one(), 'two');
+        ask(ctx, null, s.x + '（' + k + '/' + items.length + '）\n\n「' + it[0] + '」', opts, () => ctx.dead ? gameOver(ctx, ctx.li) : one(), 'two');
       };
       one();
     },
@@ -449,6 +452,7 @@
         segs.forEach((e, i) => e.classList.toggle('on', i < n));
         meter.className = 'meter' + (n >= 6 ? ' hi' : n >= 4 ? ' mid' : '');
         go.disabled = n < 6;
+        go.textContent = n < 6 ? '還差 ' + (6 - n) + ' 項條件，才能攻擊' : '用這個密碼攻擊！';
       };
       inp.oninput = upd;
       inp.onkeydown = e => { if (e.key === 'Enter' && !go.disabled) go.click(); };
@@ -459,7 +463,7 @@
         const fb = h('div', 'fb good', '✔ 好強的密碼！史萊姆猜不到。\n記住：這只是練習，真正的密碼不要告訴別人，也不要重複使用。');
         b.append(fb); tapNext(b, next);
       };
-      wrap.append(inp, meter, ul, h('p', 'hint', s.tip || ''), go);
+      wrap.append(inp, meter, ul, h('div', 'note', s.warn || ''), h('p', 'hint', s.tip || ''), go);
       typeInto(b.querySelector('.txt'), s.x, () => { b.append(wrap); inp.focus({ preventScroll: true }); });
     },
     spot: (ctx, s, next) => {
@@ -517,9 +521,9 @@
       typeInto(b.querySelector('.txt'), s.x, () => { b.append(grid, note); });
     },
     cards: (ctx, s, next) => {
-      setSpeaker(ctx, 'guide');
+      setSpeaker(ctx, null);
       const b = ctx.box; b.innerHTML = ''; b.onclick = null; onAdvance = null;
-      b.append(h('div', 'spk', '小盾'));
+      b.append(h('div', 'spk', ''));
       const t = h('div', 'txt'); b.append(t);
       const grid = h('div', 'cards'); const more = h('div', 'more', '');
       let opened = 0;
@@ -546,7 +550,7 @@
   function playLevel(li, quick) {
     const L = C.levels[li];
     if (!quick) return encounter(L.mon, '* ' + L.monName + ' 擋住了去路！', () => playLevel(li, true));
-    const ctx = { hp: MAXHP, wrong: 0, right: 0, dead: false, li, song: 'level', bg: ['castle', 'pond', 'forest', 'house'][L.id - 1], trans: [0, 2, -2, 3][L.id - 1] || 0, voice: [240, 330, 420, 360][L.id - 1] || 300 };
+    const ctx = { hp: MAXHP, wrong: 0, right: 0, dead: false, li, song: 'level', bg: ['castle', 'pond', 'forest', 'plaza', 'house'][L.id - 1], trans: [0, 2, -2, 3, -3][L.id - 1] || 0, voice: [240, 330, 420, 280, 360][L.id - 1] || 300 };
     A.music(ctx.song, ctx.trans);
     const steps = L.steps.filter(eligible);
     ctx.mTotal = ctx.mLeft = steps.reduce((n, s) => n + (s.t === 'ask' || s.t === 'build' ? 1 : s.t === 'sort' ? s.i.length : s.t === 'match' ? s.p.length : s.t === 'spot' ? s.parts.filter(p => p[1]).length : 0), 0);
@@ -584,8 +588,8 @@
     const b = ctx.box; b.innerHTML = ''; b.onclick = null;
     const r = h('div', 'result');
     const got = C.levels.filter(l => S.done[l.id] > 0).length;
-    if (!ctx.shardShown) { ctx.shardShown = true; return scene(b, 'shard', { n: got }, () => finishLevel(ctx, li)); }
-    const shr =h('div', 'shards'); shr.append(sprite('shard', 4), h('span', '', '得到「安全之鑰」碎片！　' + got + ' / 4'));
+    if (!ctx.shardShown) { ctx.shardShown = true; return scene(b, 'shard', { n: got, total: C.levels.length }, () => finishLevel(ctx, li)); }
+    const shr =h('div', 'shards'); shr.append(sprite('shard', 4), h('span', '', '得到「安全之鑰」碎片！　' + got + ' / ' + C.levels.length));
     r.append(h('div', 'big', '關卡完成！'), stars(st), shr, h('p', '', '答錯 ' + ctx.wrong + ' 次。' + (st < 3 ? '想拿滿星，可以再挑戰一次。' : '完美！')));
     const tl = h('div', 'tools');
     const back = h('button', '', '回到地圖'); back.onclick = showHub; tl.append(back);

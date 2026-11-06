@@ -49,7 +49,7 @@ window.Scenes = (() => {
   const text = (g, s, y, col) => { g.font = FONT; g.textAlign = 'center'; g.fillStyle = '#000'; g.fillText(s, W / 2 + 2, y + 2); g.fillStyle = col || '#fff'; g.fillText(s, W / 2, y); };
 
   const KEY_AT = [150, 100];
-  const CORNERS = [[50, 50], [430, 50], [50, 190], [430, 190]];
+  const CORNERS = [[50, 50], [430, 50], [50, 190], [240, 56], [430, 190]];
 
   const SCENES = {
     // 夜晚的王國，安全之鑰發光
@@ -67,7 +67,7 @@ window.Scenes = (() => {
       }
     },
 
-    // 黑客熊登場，打碎鑰匙，四塊碎片飛向四個怪獸
+    // 黑客熊登場，打碎鑰匙，五塊碎片飛向五個怪獸
     shatter: {
       dur: 7,
       draw(g, t, o, st) {
@@ -87,7 +87,7 @@ window.Scenes = (() => {
           CORNERS.forEach((c, i) => {
             if (t < 3.8) draw(g, 'shard', lerp(KEY_AT[0], c[0], p), lerp(KEY_AT[1], c[1], p), 5);
             else {
-              const m = ['slime', 'phish', 'ghost', 'robot'][i], k = ease((t - 3.8) / 0.5);
+              const m = ['slime', 'phish', 'ghost', 'troll', 'robot'][i], k = ease((t - 3.8) / 0.5);
               draw(g, m, c[0], c[1] + (i > 1 ? 4 : 10), 4 * k, 70);
               draw(g, 'shard', c[0], c[1] - 34 + Math.sin(t * 3 + i) * 3, 3);
             }
@@ -183,7 +183,7 @@ window.Scenes = (() => {
             const a = t * 3 + i * 0.63, r = 45 + ((t - 0.7) * 40 + i * 6) % 40;
             g.fillRect(W / 2 + Math.cos(a) * r, 95 + Math.sin(a) * r, 4, 4);
           }
-          text(g, '得到「安全之鑰」碎片！　' + o.n + ' / 4', 205, '#facc15');
+          text(g, '得到「安全之鑰」碎片！　' + o.n + ' / ' + (o.total || 5), 205, '#facc15');
         }
         flash(g, t >= 0.7 && t < 0.95 ? 1 - (t - 0.7) / 0.25 : 0);
       }

@@ -95,6 +95,21 @@ window.SPRITES = {
     '.yyy.yyy.',
     '.yy...yy.'
   ],
+  troll: [
+    '..kkkkkkkk..',
+    '.kooooooook.',
+    'kooooooooook',
+    'koowwoowwook',
+    'koowkoowkook',
+    'kooooooooook',
+    'kokkkkkkkkok',
+    'kowkwkwkwkok',
+    '.kooooooook.',
+    '...kokkk....',
+    '...kok......',
+    '...kk.......'
+  ],
+  bub: ['ooooo', 'owwwo', 'ooooo', '..oo.', '.o...'],
   drop: ['..g..', '.ggg.', 'ggggg', 'ggggg', '.ggg.'],
   hook: ['.yyy.', '...y.', '...y.', 'y..y.', '.yy..'],
   foot: ['.ww.', 'wwww', 'wwww', '.ww.', '.ww.', '..w.'],

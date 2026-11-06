@@ -50,6 +50,16 @@ window.Maps = (() => {
       for (let i = 0; i < 8; i++) { const x = 60 + i * 10, y = 54 + (i % 2) * 6; R(g, '#2a2013', x, y, 3, 4); R(g, '#2a2013', x + 4, y + (i % 2 ? -1 : 1), 3, 4); }
       for (let i = 0; i < 14; i++) R(g, '#fde047', rnd(i + 9) * 188, 8 + rnd(i + 70) * 52, 2, 2);
     },
+    plaza(g) {
+      ['#2e1065', '#4c1d95', '#6d28d9', '#a855f7', '#e879f9', '#fbcfe8'].forEach((c, i) => R(g, c, 0, i * 8, 192, 8));
+      [[6, 22, 28], [40, 30, 22], [70, 18, 30], [110, 26, 26], [146, 20, 24], [176, 28, 16]].forEach(([x, y, w], k) => {
+        R(g, '#1e1b4b', x, y, w, 48 - y);
+        for (let wy = y + 5; wy < 42; wy += 8) for (let wx = x + 4; wx < x + w - 3; wx += 8) R(g, rnd(wx + wy + k) > 0.4 ? '#fde047' : '#312e81', wx, wy, 3, 4);
+      });
+      R(g, '#57534e', 0, 48, 192, 24);
+      for (let y = 48; y < 72; y += 6) { R(g, '#44403c', 0, y, 192, 1); for (let x = ((y - 48) / 6 % 2) * 6; x < 192; x += 12) R(g, '#44403c', x, y, 1, 6); }
+      [[34, 12], [100, 8], [160, 14]].forEach(([x, y]) => { E(g, '#fff', x, y, 11, 6); R(g, '#fff', x - 6, y + 5, 3, 3); [-5, 0, 5].forEach(d => R(g, '#a855f7', x + d - 1, y - 1, 2, 2)); });
+    },
     house(g) {
       R(g, '#0f172a', 0, 0, 192, 72);
       for (let x = 0; x < 192; x += 12) R(g, '#16213a', x, 0, 1, 48);
@@ -99,8 +109,8 @@ window.Maps = (() => {
 
   /* ---------- 世界地圖（240 x 160） ---------- */
 
-  const NODES = [{ x: 34, y: 116 }, { x: 96, y: 114 }, { x: 160, y: 98 }, { x: 118, y: 62 }, { x: 196, y: 42 }];
-  const MON = ['slime', 'phish', 'ghost', 'robot', 'boss'];
+  const NODES = [{ x: 30, y: 126 }, { x: 92, y: 128 }, { x: 178, y: 112 }, { x: 136, y: 74 }, { x: 62, y: 50 }, { x: 196, y: 42 }];
+  const MON = ['slime', 'phish', 'ghost', 'troll', 'robot', 'boss'];
 
   const castleB = (g, x, y) => {
     R(g, '#6b7280', x - 12, y - 6, 24, 16); R(g, '#6b7280', x - 15, y - 14, 8, 24); R(g, '#6b7280', x + 7, y - 14, 8, 24);
@@ -119,6 +129,13 @@ window.Maps = (() => {
     R(g, '#2a2013', x - 8, y + 4, 2, 3); R(g, '#2a2013', x - 4, y + 7, 2, 3); R(g, '#2a2013', x + 4, y + 5, 2, 3); R(g, '#2a2013', x + 8, y + 8, 2, 3);
     R(g, '#78350f', x, y - 8, 2, 12); R(g, '#a16207', x - 5, y - 8, 12, 4);
   };
+  const plazaB = (g, x, y) => {
+    R(g, '#6b7280', x - 18, y + 10, 36, 4);
+    R(g, '#78350f', x - 12, y - 6, 3, 16); R(g, '#78350f', x + 9, y - 6, 3, 16);
+    R(g, '#a16207', x - 15, y - 16, 30, 16); R(g, '#fde68a', x - 13, y - 14, 26, 12);
+    R(g, '#fff', x - 11, y - 13, 14, 8); R(g, '#fff', x - 8, y - 5, 3, 3); R(g, '#a855f7', x - 8, y - 10, 2, 2); R(g, '#a855f7', x - 4, y - 10, 2, 2); R(g, '#a855f7', x, y - 10, 2, 2);
+    R(g, '#ef4444', x + 6, y - 13, 3, 6); R(g, '#ef4444', x + 6, y - 5, 3, 2);
+  };
   const houseB = (g, x, y) => {
     R(g, '#94a3b8', x - 10, y - 6, 20, 15);
     R(g, '#dc2626', x - 12, y - 8, 24, 3); R(g, '#dc2626', x - 9, y - 11, 18, 3); R(g, '#dc2626', x - 6, y - 14, 12, 3); R(g, '#dc2626', x - 3, y - 17, 6, 3);
@@ -132,38 +149,40 @@ window.Maps = (() => {
     R(g, '#ef4444', x - 17, y - 10, 3, 4); R(g, '#ef4444', x + 14, y - 10, 3, 4); R(g, '#ef4444', x - 2, y - 14, 4, 5);
     R(g, '#000', x - 4, y + 2, 8, 8);
   };
-  const BUILD = [castleB, dockB, forestB, houseB, fortressB];
+  const BUILD = [castleB, dockB, forestB, plazaB, houseB, fortressB];
 
   function world(o) {
     const done = o.done || {}, lv = o.levels || [];
-    const ok = i => i === 0 ? true : i < 4 ? done[lv[i - 1].id] > 0 : o.allDone;
+    const ok = i => i === 0 ? true : i < lv.length ? done[lv[i - 1].id] > 0 : o.allDone;
     const [c, g] = mk(240, 160);
     R(g, '#14532d', 0, 0, 240, 160);
     for (let i = 0; i < 700; i++) R(g, ['#166534', '#15803d', '#0f4423'][i % 3], rnd(i) * 238, rnd(i + 900) * 158, 2, 1);
     for (let i = 0; i < 50; i++) R(g, ['#f9a8d4', '#fde047', '#fff'][i % 3], rnd(i + 2000) * 236, rnd(i + 3000) * 156, 2, 2);
     // 山
-    tri(g, '#4b5563', 22, 52, 40, 30); tri(g, '#e5e7eb', 22, 28, 12, 6); tri(g, '#6b7280', 56, 50, 32, 22); tri(g, '#e5e7eb', 56, 31, 8, 4);
-    tri(g, '#4b5563', 12, 70, 26, 18);
+    tri(g, '#4b5563', 16, 46, 32, 24); tri(g, '#e5e7eb', 16, 28, 10, 5);
+    tri(g, '#4b5563', 224, 152, 30, 22); tri(g, '#e5e7eb', 224, 134, 9, 4); tri(g, '#6b7280', 206, 154, 22, 14);
     // 魔王區
     E(g, '#2e1065', 196, 42, 40, 32); E(g, '#3b0764', 196, 42, 30, 24);
     for (let i = 0; i < 6; i++) { const x = 168 + i * 9, y = 62 + (i % 2) * 4; R(g, '#7f1d1d', x, y, 6, 1); R(g, '#7f1d1d', x + 6, y, 1, 4); }
     // 池塘
-    E(g, '#1e40af', 96, 134, 38, 16); E(g, '#1d4ed8', 96, 134, 34, 13);
-    for (let i = 0; i < 10; i++) R(g, '#60a5fa', 68 + rnd(i + 40) * 56, 124 + rnd(i + 60) * 20, 5, 1);
-    E(g, '#16a34a', 76, 138, 5, 2); E(g, '#16a34a', 118, 142, 5, 2);
+    const lx = NODES[1].x, ly = NODES[1].y + 8;
+    E(g, '#1e40af', lx, ly, 38, 16); E(g, '#1d4ed8', lx, ly, 34, 13);
+    for (let i = 0; i < 10; i++) R(g, '#60a5fa', lx - 28 + rnd(i + 40) * 56, ly - 10 + rnd(i + 60) * 20, 5, 1);
+    E(g, '#16a34a', lx - 20, ly + 4, 5, 2); E(g, '#16a34a', lx + 22, ly + 8, 5, 2);
     // 樹林
     const tree = (x, y, dk) => { R(g, '#3f2a14', x - 1, y, 3, 5); E(g, dk ? '#0b3d1f' : '#14532d', x, y - 3, 6, 6); E(g, dk ? '#14532d' : '#166534', x - 1, y - 5, 4, 3); };
     const near = (x, y, r) => NODES.some(n => (n.x - x) ** 2 + (n.y - y) ** 2 < r * r);
-    for (let k = 0; k < 22; k++) { const a = k / 22 * Math.PI * 2; tree(160 + Math.cos(a) * 44, 100 + Math.sin(a) * 30, true); }
-    for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2 + 0.2; tree(160 + Math.cos(a) * 28, 100 + Math.sin(a) * 19, true); }
+    const fx = NODES[2].x, fy = NODES[2].y;
+    for (let k = 0; k < 18; k++) { const a = k / 18 * Math.PI * 2; tree(fx + Math.cos(a) * 38, fy + Math.sin(a) * 25, true); }
+    for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2 + 0.2; tree(fx + Math.cos(a) * 22, fy + Math.sin(a) * 14, true); }
     for (let i = 0; i < 34; i++) {
       const x = 6 + rnd(i + 500) * 228, y = 10 + rnd(i + 600) * 146;
-      if (near(x, y, 26) || (x - 196) ** 2 + (y - 42) ** 2 < 42 * 42 || (y > 116 && x > 54 && x < 140) || (x - 160) ** 2 + (y - 100) ** 2 < 40 * 40) continue;
+      if (near(x, y, 30) || (x - 196) ** 2 + (y - 42) ** 2 < 42 * 42 || (x - lx) ** 2 + (y - ly) ** 2 < 46 * 46 || (x - fx) ** 2 + (y - fy) ** 2 < 46 * 46) continue;
       tree(x, y);
     }
     // 路
-    for (let i = 0; i < 4; i++) {
-      const a = NODES[i], b = NODES[i + 1], col = (i < 4 && ok(i + 1)) ? '#facc15' : '#d6b98c';
+    for (let i = 0; i < NODES.length - 1; i++) {
+      const a = NODES[i], b = NODES[i + 1], col = ok(i + 1) ? '#facc15' : '#d6b98c';
       const n = Math.round(Math.hypot(b.x - a.x, b.y - a.y) / 5);
       for (let k = 1; k < n; k++) { const t = k / n; R(g, col, a.x + (b.x - a.x) * t - 1, b.y * t + a.y * (1 - t) - 1 + Math.round(Math.sin(k * 0.9)), 3, 3); }
     }
