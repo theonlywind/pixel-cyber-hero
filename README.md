@@ -21,7 +21,7 @@
 
 ## 老師後台
 
-學生紀錄上報同老師後台見 [`backend/README.md`](backend/README.md)（Google Apps Script，免費）。`config.js` 留空就唔上報。
+老師開課堂產生代號，學生輸入「課堂代號」就會上報；詳見 [`backend/README.md`](backend/README.md)（Google Apps Script，免費）。`config.js` 留空就唔上報。
 
 ## 改內容
 

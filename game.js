@@ -5,11 +5,13 @@
   const KEY = 'pixel-cyber-v1';
   const MAXHP = 20, HURT = 3;
 
-  let S = { name: '', sid: '', grade: 3, done: {}, cert: null, mute: false };
+  let S = { name: '', code: '', pid: '', grade: 3, done: {}, cert: null, mute: false };
   try { Object.assign(S, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+  // 每部裝置一個隨機代號，後台用嚟分開同名嘅玩家（唔係個人資料）
+  if (!/^[0-9a-f]{6}$/.test(S.pid || '')) { S.pid = Math.random().toString(16).slice(2, 8).padEnd(6, '0'); save(); }
 
-  /* ---------- 上報（只送班別學號、關卡、星數；失敗會排隊重送） ---------- */
+  /* ---------- 上報（只送課堂代號、名、關卡、星數；失敗會排隊重送） ---------- */
 
   const QK = 'pixel-cyber-q';
   const readQ = () => { try { return JSON.parse(localStorage.getItem(QK) || '[]'); } catch (e) { return []; } };
@@ -24,9 +26,20 @@
       .catch(() => { sending = false; });
   }
   function report(event, data) {
-    if (!window.REPORT_URL || !S.sid) return;
-    const q = readQ(); q.push(JSON.stringify(Object.assign({ sid: S.sid, grade: S.grade >= 5 ? 'P5-P6' : 'P3-P4', event }, data)));
+    if (!window.REPORT_URL || !S.code) return;
+    const q = readQ(); q.push(JSON.stringify(Object.assign({ code: S.code, pid: S.pid, name: S.name, grade: S.grade >= 5 ? 'P5-P6' : 'P3-P4', event }, data)));
     writeQ(q); flush();
+  }
+  // 用 JSONP 驗證課堂代號（可以跨網域讀到結果）；網絡有問題會回傳 null
+  function checkCode(code, cb) {
+    const name = 'cb' + Date.now(); let fin = false;
+    const sc = document.createElement('script');
+    const end = r => { if (fin) return; fin = true; delete window[name]; sc.remove(); cb(r); };
+    window[name] = end;
+    sc.src = window.REPORT_URL + '?action=check&code=' + encodeURIComponent(code) + '&callback=' + name;
+    sc.onerror = () => end(null);
+    setTimeout(() => end(null), 6000);
+    document.head.append(sc);
   }
   addEventListener('online', flush);
   setTimeout(flush, 1500);
@@ -126,10 +139,12 @@
     const lab = h('label', '', '請輸入你的名字');
     const inp = h('input'); inp.maxLength = 8; inp.value = S.name;
     lab.append(inp); s.append(lab);
-    let sidInp = null;
+    let codeInp = null;
+    const msg = h('p', 'hint'); msg.style.color = '#f87171';
     if (window.REPORT_URL) {
-      const l2 = h('label', '', '班別學號（如 3A05）');
-      sidInp = h('input'); sidInp.maxLength = 8; sidInp.value = S.sid || ''; l2.append(sidInp); s.append(l2);
+      const l2 = h('label', '', '課堂代號');
+      codeInp = h('input'); codeInp.maxLength = 4; codeInp.value = S.code || ''; codeInp.style.width = '110px'; codeInp.style.textTransform = 'uppercase';
+      l2.append(codeInp); s.append(l2);
     }
     const gr = h('div', 'grades'); gr.append(h('span', '', '年級'));
     const bs = [[3, 'P3-P4'], [5, 'P5-P6']].map(([g, t]) => {
@@ -140,13 +155,20 @@
     s.append(gr);
     const go = h('button', '', '♥ 開始冒險');
     go.onclick = () => {
-      if (sidInp) {
-        const v = sidInp.value.replace(/\s/g, '').toUpperCase();
-        if (v && !/^[0-9A-Z]{2,8}$/.test(v)) { sidInp.style.borderColor = '#ef4444'; sidInp.focus(); return; }
-        S.sid = v;
-      }
-      S.name = inp.value.trim().slice(0, 8) || '小勇者'; save(); report('start'); A.sfx('select'); if (S.seen && Object.keys(S.done).length) showHub(); else prologue(); };
-    s.append(go);
+      const name = inp.value.trim().slice(0, 8) || '小勇者';
+      const begin = () => { S.name = name; save(); report('start'); A.sfx('select'); if (S.seen && Object.keys(S.done).length) showHub(); else prologue(); };
+      if (!codeInp) return begin();
+      const code = codeInp.value.replace(/\s/g, '').toUpperCase();
+      if (!code) { S.code = ''; return begin(); } // 唔填 = 唔上報
+      if (!/^[A-Z0-9]{4}$/.test(code)) { msg.textContent = '請輸入 4 位課堂代號'; return; }
+      msg.textContent = '檢查課堂代號…'; go.disabled = true;
+      checkCode(code, r => {
+        go.disabled = false;
+        if (r && !r.ok) { msg.textContent = '課堂代號不正確，或者課堂已經結束。請問老師。'; return; }
+        S.code = code; msg.textContent = ''; begin(); // r 係 null（網絡問題）都照玩，紀錄會排隊補送
+      });
+    };
+    s.append(go, msg);
     app.append(s);
   }
 
@@ -211,7 +233,7 @@
         return;
       }
       clearTimeout(armed);
-      S = { name: '', sid: S.sid, grade: S.grade, done: {}, cert: null, mute: S.mute, noMusic: S.noMusic }; save(); showTitle();
+      S = { name: '', code: S.code, pid: S.pid, grade: S.grade, done: {}, cert: null, mute: S.mute, noMusic: S.noMusic }; save(); showTitle();
     };
     tools.append(mute, mm, reset);
     s.append(tools);
@@ -675,7 +697,7 @@
     if (ok) {
       if (!S.cert) S.cert = { code: Math.random().toString(16).slice(2, 10).toUpperCase(), date: new Date().toLocaleDateString('zh-HK'), name: S.name || '小勇者', grade: S.grade >= 5 ? 'P5-P6' : 'P3-P4' };
       save();
-      if (!S.certSent) { S.certSent = true; save(); report('cert', { code: S.cert.code }); }
+      if (!S.certSent) { S.certSent = true; save(); report('cert', { certCode: S.cert.code }); }
       const c = h('button', '', '♥ 繼續'); c.onclick = epilogue; tl.append(c);
       A.jingle('win');
     } else {

@@ -14,29 +14,32 @@
   .sub { color:var(--mut); margin:0 0 16px; }
   input, select, button { font:inherit; color:var(--fg); background:#14141f; border:2px solid var(--line); padding:6px 12px; border-radius:6px; }
   button { cursor:pointer; } button:hover { border-color:var(--y); }
-  #login { display:flex; gap:8px; flex-wrap:wrap; }
-  #err { color:var(--r); margin-top:8px; min-height:1.4em; }
+  button.pri { border-color:var(--y); color:var(--y); }
+  #login, .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  #err, #msg { color:var(--r); margin-top:8px; min-height:1.4em; }
   .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
   .tile { border:2px solid var(--line); border-radius:8px; padding:10px 14px; }
   .tile b { display:block; font-size:26px; color:var(--y); line-height:1.2; }
   .tile span { color:var(--mut); font-size:13px; }
+  .code { display:none; margin-top:12px; padding:14px 18px; border:2px solid var(--y); border-radius:8px; }
+  .code b { display:block; font-size:44px; letter-spacing:8px; color:var(--y); line-height:1.2; }
   .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:18px 0 8px; }
   .bar .sp { flex:1; }
   .wrap { overflow-x:auto; border:2px solid var(--line); border-radius:8px; }
-  table { border-collapse:collapse; width:100%; min-width:760px; }
+  table { border-collapse:collapse; width:100%; min-width:720px; }
   th, td { padding:7px 10px; text-align:center; border-bottom:1px solid var(--line); white-space:nowrap; }
-  th { background:#14141f; color:var(--mut); font-weight:500; font-size:13px; position:sticky; top:0; }
+  th { background:#14141f; color:var(--mut); font-weight:500; font-size:13px; }
   td:first-child, th:first-child { text-align:left; }
   tr:last-child td { border-bottom:0; }
   .st { color:var(--y); letter-spacing:1px; } .no { color:#4b5563; } .ok { color:var(--g); } .bad { color:var(--r); }
-  .old td:last-child { color:var(--r); }
+  .mono { font-family:ui-monospace,Menlo,monospace; letter-spacing:2px; }
   .empty { padding:24px; text-align:center; color:var(--mut); }
 </style>
 </head>
 <body>
 <main>
   <h1>網絡安全小勇者｜老師後台</h1>
-  <p class="sub">只顯示班別學號同關卡紀錄，唔包含學生真實姓名。</p>
+  <p class="sub">只顯示課堂代號、學生喺遊戲輸入嘅名同關卡紀錄，唔記班別同座號。</p>
 
   <div id="loginBox">
     <form id="login"><input id="pass" type="password" placeholder="老師密碼" autocomplete="current-password"><button>登入</button></form>
@@ -44,15 +47,24 @@
   </div>
 
   <div id="app" hidden>
-    <div class="tiles" id="tiles"></div>
+    <h2 style="margin-top:0">開新課堂</h2>
+    <form class="row" id="newForm">
+      <input id="newNote" placeholder="備註（可留空，例如 3A 第2堂）" maxlength="40" size="30">
+      <button class="pri">產生課堂代號</button>
+    </form>
+    <div id="msg"></div>
+    <div class="code" id="codeBox">課堂代號（叫學生喺遊戲標題畫面輸入）<b id="codeBig"></b></div>
 
-    <h2>班別概覽</h2>
-    <div class="wrap"><table id="classTbl"></table></div>
+    <h2>課堂</h2>
+    <div class="wrap"><table id="sesTbl"></table></div>
+
+    <h2>總覽</h2>
+    <div class="tiles" id="tiles"></div>
 
     <div class="bar">
       <h2 style="margin:0">學生紀錄</h2>
-      <select id="cls"></select>
-      <input id="q" placeholder="搜尋學號">
+      <select id="ses"></select>
+      <input id="q" placeholder="搜尋名字或代號" size="14">
       <span class="sp"></span>
       <button id="reload">重新整理</button>
       <button id="csv">匯出 CSV</button>
@@ -65,86 +77,94 @@
 <script>
   var DATA = null, PASS = '';
   var $ = function (id) { return document.getElementById(id); };
-  var clsOf = function (sid) { var m = /^\d[A-Z]?/.exec(sid); return m ? m[0] : '其他'; };
   var fmt = function (t) { return new Date(t).toLocaleString('zh-HK', { hour12: false }); };
+  var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+    var stars = function (n) { return n ? '★'.repeat(n) + '☆'.repeat(3 - n) : '—'; };
+  var done = function (s) { return Object.keys(s.levels).length; };
   var DAY = 864e5;
 
-  function load() {
-    $('err').textContent = '';
-    google.script.run
-      .withSuccessHandler(function (s) { DATA = JSON.parse(s); $('loginBox').hidden = true; $('app').hidden = false; render(); })
-      .withFailureHandler(function (e) { $('err').textContent = (e && e.message || '載入失敗').replace(/^Error:\s*/, ''); })
-      .getData(PASS);
+  function run(fn, ok) {
+    $('err').textContent = ''; $('msg').textContent = '';
+    var r = google.script.run.withSuccessHandler(ok).withFailureHandler(function (e) {
+      var m = (e && e.message || '失敗').replace(/^Error:\s*/, '');
+      ($('app').hidden ? $('err') : $('msg')).textContent = m;
+    });
+    fn(r);
   }
+  function load() { run(function (r) { r.getData(PASS); }, function (s) { DATA = JSON.parse(s); $('loginBox').hidden = true; $('app').hidden = false; render(); }); }
+
   $('login').onsubmit = function (ev) { ev.preventDefault(); PASS = $('pass').value; load(); };
   $('reload').onclick = load;
-  $('cls').onchange = $('q').oninput = function () { renderTable(); };
+  $('ses').onchange = $('q').oninput = function () { renderTable(); };
+  $('newForm').onsubmit = function (ev) {
+    ev.preventDefault();
+    run(function (r) { r.createSession(PASS, $('newNote').value); }, function (code) {
+      $('codeBig').textContent = code; $('codeBox').style.display = 'block'; $('newNote').value = ''; load();
+      setTimeout(function () { $('ses').value = code; renderTable(); }, 400);
+    });
+  };
 
   function cell(tr, text, cls) { var td = document.createElement('td'); td.textContent = text; if (cls) td.className = cls; tr.appendChild(td); return td; }
   function head(tbl, cols) { tbl.innerHTML = ''; var tr = document.createElement('tr'); cols.forEach(function (c) { var th = document.createElement('th'); th.textContent = c; tr.appendChild(th); }); tbl.appendChild(tr); }
-  var stars = function (n) { return n ? '★'.repeat(n) + '☆'.repeat(3 - n) : '—'; };
-  var done = function (s) { return Object.keys(s.levels).length; };
 
   function render() {
-    var st = DATA.students, n = DATA.levelNames.length, now = Date.now();
-    var tiles = [
-      [st.length, '有紀錄嘅學生'],
-      [st.filter(function (s) { return done(s) >= n; }).length, '完成全部 ' + n + ' 關'],
-      [st.filter(function (s) { return s.boss && s.boss.pass; }).length, '打敗黑客熊'],
-      [st.filter(function (s) { return s.cert; }).length, '已領證書'],
-      [st.filter(function (s) { return now - s.last < 7 * DAY; }).length, '7 日內有玩']
-    ];
-    $('tiles').innerHTML = '';
-    tiles.forEach(function (t) { var d = document.createElement('div'); d.className = 'tile'; d.innerHTML = '<b></b><span></span>'; d.firstChild.textContent = t[0]; d.lastChild.textContent = t[1]; $('tiles').appendChild(d); });
-
-    var cs = {};
-    st.forEach(function (s) { var c = clsOf(s.sid); (cs[c] = cs[c] || []).push(s); });
-    var names = Object.keys(cs).sort();
-    head($('classTbl'), ['班別', '人數', '平均完成關卡', '打敗黑客熊', '已領證書']);
-    names.forEach(function (c) {
-      var a = cs[c], tr = document.createElement('tr');
-      cell(tr, c); cell(tr, a.length);
-      cell(tr, (a.reduce(function (x, s) { return x + done(s); }, 0) / a.length).toFixed(1) + ' / ' + n);
-      cell(tr, a.filter(function (s) { return s.boss && s.boss.pass; }).length + ' / ' + a.length);
-      cell(tr, a.filter(function (s) { return s.cert; }).length + ' / ' + a.length);
-      $('classTbl').appendChild(tr);
+    var ses = DATA.sessions, cnt = {};
+    DATA.students.forEach(function (s) { cnt[s.code] = (cnt[s.code] || 0) + 1; });
+    head($('sesTbl'), ['課堂代號', '開始時間', '備註', '人數', '狀態', '']);
+    ses.forEach(function (x) {
+      var tr = document.createElement('tr');
+      cell(tr, x.code, 'mono'); cell(tr, fmt(x.created)); cell(tr, x.note); cell(tr, cnt[x.code] || 0);
+      cell(tr, x.status === 'open' ? '進行中' : '已結束', x.status === 'open' ? 'ok' : 'no');
+      var td = document.createElement('td'), b = document.createElement('button');
+      b.textContent = x.status === 'open' ? '結束課堂' : '重開';
+      b.onclick = function () { run(function (r) { r.setSessionStatus(PASS, x.code, x.status === 'open' ? 'closed' : 'open'); }, load); };
+      td.appendChild(b); tr.appendChild(td); $('sesTbl').appendChild(tr);
     });
-    if (!names.length) $('classTbl').innerHTML = '<tr><td class="empty">暫時未有紀錄</td></tr>';
+    if (!ses.length) $('sesTbl').innerHTML = '<tr><td class="empty">未有課堂，喺上面「產生課堂代號」開始</td></tr>';
 
-    var cur = $('cls').value;
-    $('cls').innerHTML = '<option value="">全部班別</option>' + names.map(function (c) { return '<option>' + c + '</option>'; }).join('');
-    $('cls').value = names.indexOf(cur) >= 0 ? cur : '';
+    var curS = $('ses').value;
+    $('ses').innerHTML = '<option value="">全部課堂</option>' + ses.map(function (x) { return '<option value="' + x.code + '">' + x.code + '｜' + fmt(x.created).slice(0, 16) + (x.note ? '｜' + x.note : '') + '</option>'; }).join('');
+    $('ses').value = ses.some(function (x) { return x.code === curS; }) ? curS : '';
     $('gen').textContent = '資料時間：' + fmt(DATA.generated);
     renderTable();
   }
 
   function rows() {
-    var c = $('cls').value, q = $('q').value.trim().toUpperCase();
-    return DATA.students.filter(function (s) { return (!c || clsOf(s.sid) === c) && (!q || s.sid.indexOf(q) >= 0); });
+    var q = $('q').value.trim().toUpperCase(), sel = $('ses').value;
+    return DATA.students.filter(function (s) { return (!sel || s.code === sel) && (!q || (s.code + ' ' + s.name.toUpperCase()).indexOf(q) >= 0); })
+      .sort(function (a, b) { return a.code < b.code ? -1 : a.code > b.code ? 1 : a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
   }
 
   function renderTable() {
-    var n = DATA.levelNames.length, now = Date.now();
-    head($('tbl'), ['學生', '年級'].concat(DATA.levelNames.map(function (x, i) { return '第' + (i + 1) + '關 ' + x; }), ['最終關', '證書', '失敗次數', '最後活動']));
-    var list = rows();
+    var n = DATA.levelNames.length, now = Date.now(), list = rows();
+    head($('tbl'), ['課堂代號', '玩家', '年級'].concat(DATA.levelNames.map(function (x, i) { return '第' + (i + 1) + '關 ' + x; }), ['最終關', '證書', '失敗次數', '最後活動']));
     list.forEach(function (s) {
       var tr = document.createElement('tr');
-      cell(tr, s.sid); cell(tr, s.grade);
+      cell(tr, s.code, 'mono'); cell(tr, s.name); cell(tr, s.grade);
       for (var i = 1; i <= n; i++) { var l = s.levels[i]; cell(tr, l ? stars(l.stars) : '—', l ? 'st' : 'no'); }
       cell(tr, s.boss ? (s.boss.pass ? '通過 ' + s.boss.best + '/' + s.boss.total : '未過（' + s.boss.tries + ' 次）') : '—', s.boss ? (s.boss.pass ? 'ok' : 'bad') : 'no');
       cell(tr, s.cert ? '✔' : '—', s.cert ? 'ok' : 'no');
       cell(tr, s.fails || 0, s.fails >= 3 ? 'bad' : '');
       cell(tr, fmt(s.last));
-      if (now - s.last > 14 * DAY) tr.className = 'old';
       $('tbl').appendChild(tr);
     });
-    if (!list.length) { var tr = document.createElement('tr'), td = document.createElement('td'); td.className = 'empty'; td.colSpan = n + 6; td.textContent = '冇符合嘅學生'; tr.appendChild(td); $('tbl').appendChild(tr); }
+    if (!list.length) { var tr = document.createElement('tr'), td = document.createElement('td'); td.className = 'empty'; td.colSpan = n + 7; td.textContent = '冇符合嘅學生'; tr.appendChild(td); $('tbl').appendChild(tr); }
+
+    var tiles = [
+      [list.length, '學生人數'],
+      [list.filter(function (s) { return done(s) >= n; }).length, '完成全部 ' + n + ' 關'],
+      [list.filter(function (s) { return s.boss && s.boss.pass; }).length, '打敗黑客熊'],
+      [list.filter(function (s) { return s.cert; }).length, '已領證書'],
+      [list.filter(function (s) { return s.fails >= 3; }).length, '失敗 3 次或以上']
+    ];
+    $('tiles').innerHTML = '';
+    tiles.forEach(function (t) { var d = document.createElement('div'); d.className = 'tile'; d.innerHTML = '<b></b><span></span>'; d.firstChild.textContent = t[0]; d.lastChild.textContent = t[1]; $('tiles').appendChild(d); });
   }
 
   $('csv').onclick = function () {
-    var n = DATA.levelNames.length, out = [['學生', '班別', '年級'].concat(DATA.levelNames.map(function (x, i) { return '第' + (i + 1) + '關' + x + '星數'; }), ['最終關', '證書', '失敗次數', '最後活動'])];
+    var n = DATA.levelNames.length, out = [['課堂代號', '玩家', '年級'].concat(DATA.levelNames.map(function (x, i) { return '第' + (i + 1) + '關' + x + '星數'; }), ['最終關', '證書', '失敗次數', '最後活動'])];
     rows().forEach(function (s) {
-      var r = [s.sid, clsOf(s.sid), s.grade];
+      var r = [s.code, s.name, s.grade];
       for (var i = 1; i <= n; i++) r.push(s.levels[i] ? s.levels[i].stars : '');
       r.push(s.boss ? (s.boss.pass ? '通過' : '未過') : '', s.cert ? 'Y' : '', s.fails || 0, fmt(s.last));
       out.push(r);
