@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root { --bg:#0b0b14; --fg:#f3f4f6; --mut:#9ca3af; --line:#2a2a3d; --y:#facc15; --g:#4ade80; --r:#f87171; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.6 'PingFang HK','Microsoft JhengHei','Noto Sans TC',sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:20px 16px 48px; }
+  h1 { font-size:22px; margin:0 0 4px; color:var(--y); font-weight:600; }
+  h2 { font-size:16px; margin:28px 0 8px; font-weight:600; }
+  .sub { color:var(--mut); margin:0 0 16px; }
+  input, select, button { font:inherit; color:var(--fg); background:#14141f; border:2px solid var(--line); padding:6px 12px; border-radius:6px; }
+  button { cursor:pointer; } button:hover { border-color:var(--y); }
+  #login { display:flex; gap:8px; flex-wrap:wrap; }
+  #err { color:var(--r); margin-top:8px; min-height:1.4em; }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .tile { border:2px solid var(--line); border-radius:8px; padding:10px 14px; }
+  .tile b { display:block; font-size:26px; color:var(--y); line-height:1.2; }
+  .tile span { color:var(--mut); font-size:13px; }
+  .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:18px 0 8px; }
+  .bar .sp { flex:1; }
+  .wrap { overflow-x:auto; border:2px solid var(--line); border-radius:8px; }
+  table { border-collapse:collapse; width:100%; min-width:760px; }
+  th, td { padding:7px 10px; text-align:center; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { background:#14141f; color:var(--mut); font-weight:500; font-size:13px; position:sticky; top:0; }
+  td:first-child, th:first-child { text-align:left; }
+  tr:last-child td { border-bottom:0; }
+  .st { color:var(--y); letter-spacing:1px; } .no { color:#4b5563; } .ok { color:var(--g); } .bad { color:var(--r); }
+  .old td:last-child { color:var(--r); }
+  .empty { padding:24px; text-align:center; color:var(--mut); }
+</style>
+</head>
+<body>
+<main>
+  <h1>網絡安全小勇者｜老師後台</h1>
+  <p class="sub">只顯示班別學號同關卡紀錄，唔包含學生真實姓名。</p>
+
+  <div id="loginBox">
+    <form id="login"><input id="pass" type="password" placeholder="老師密碼" autocomplete="current-password"><button>登入</button></form>
+    <div id="err"></div>
+  </div>
+
+  <div id="app" hidden>
+    <div class="tiles" id="tiles"></div>
+
+    <h2>班別概覽</h2>
+    <div class="wrap"><table id="classTbl"></table></div>
+
+    <div class="bar">
+      <h2 style="margin:0">學生紀錄</h2>
+      <select id="cls"></select>
+      <input id="q" placeholder="搜尋學號">
+      <span class="sp"></span>
+      <button id="reload">重新整理</button>
+      <button id="csv">匯出 CSV</button>
+    </div>
+    <div class="wrap"><table id="tbl"></table></div>
+    <p class="sub" id="gen"></p>
+  </div>
+</main>
+
+<script>
+  var DATA = null, PASS = '';
+  var $ = function (id) { return document.getElementById(id); };
+  var clsOf = function (sid) { var m = /^\d[A-Z]?/.exec(sid); return m ? m[0] : '其他'; };
+  var fmt = function (t) { return new Date(t).toLocaleString('zh-HK', { hour12: false }); };
+  var DAY = 864e5;
+
+  function load() {
+    $('err').textContent = '';
+    google.script.run
+      .withSuccessHandler(function (s) { DATA = JSON.parse(s); $('loginBox').hidden = true; $('app').hidden = false; render(); })
+      .withFailureHandler(function (e) { $('err').textContent = (e && e.message || '載入失敗').replace(/^Error:\s*/, ''); })
+      .getData(PASS);
+  }
+  $('login').onsubmit = function (ev) { ev.preventDefault(); PASS = $('pass').value; load(); };
+  $('reload').onclick = load;
+  $('cls').onchange = $('q').oninput = function () { renderTable(); };
+
+  function cell(tr, text, cls) { var td = document.createElement('td'); td.textContent = text; if (cls) td.className = cls; tr.appendChild(td); return td; }
+  function head(tbl, cols) { tbl.innerHTML = ''; var tr = document.createElement('tr'); cols.forEach(function (c) { var th = document.createElement('th'); th.textContent = c; tr.appendChild(th); }); tbl.appendChild(tr); }
+  var stars = function (n) { return n ? '★'.repeat(n) + '☆'.repeat(3 - n) : '—'; };
+  var done = function (s) { return Object.keys(s.levels).length; };
+
+  function render() {
+    var st = DATA.students, n = DATA.levelNames.length, now = Date.now();
+    var tiles = [
+      [st.length, '有紀錄嘅學生'],
+      [st.filter(function (s) { return done(s) >= n; }).length, '完成全部 ' + n + ' 關'],
+      [st.filter(function (s) { return s.boss && s.boss.pass; }).length, '打敗黑客熊'],
+      [st.filter(function (s) { return s.cert; }).length, '已領證書'],
+      [st.filter(function (s) { return now - s.last < 7 * DAY; }).length, '7 日內有玩']
+    ];
+    $('tiles').innerHTML = '';
+    tiles.forEach(function (t) { var d = document.createElement('div'); d.className = 'tile'; d.innerHTML = '<b></b><span></span>'; d.firstChild.textContent = t[0]; d.lastChild.textContent = t[1]; $('tiles').appendChild(d); });
+
+    var cs = {};
+    st.forEach(function (s) { var c = clsOf(s.sid); (cs[c] = cs[c] || []).push(s); });
+    var names = Object.keys(cs).sort();
+    head($('classTbl'), ['班別', '人數', '平均完成關卡', '打敗黑客熊', '已領證書']);
+    names.forEach(function (c) {
+      var a = cs[c], tr = document.createElement('tr');
+      cell(tr, c); cell(tr, a.length);
+      cell(tr, (a.reduce(function (x, s) { return x + done(s); }, 0) / a.length).toFixed(1) + ' / ' + n);
+      cell(tr, a.filter(function (s) { return s.boss && s.boss.pass; }).length + ' / ' + a.length);
+      cell(tr, a.filter(function (s) { return s.cert; }).length + ' / ' + a.length);
+      $('classTbl').appendChild(tr);
+    });
+    if (!names.length) $('classTbl').innerHTML = '<tr><td class="empty">暫時未有紀錄</td></tr>';
+
+    var cur = $('cls').value;
+    $('cls').innerHTML = '<option value="">全部班別</option>' + names.map(function (c) { return '<option>' + c + '</option>'; }).join('');
+    $('cls').value = names.indexOf(cur) >= 0 ? cur : '';
+    $('gen').textContent = '資料時間：' + fmt(DATA.generated);
+    renderTable();
+  }
+
+  function rows() {
+    var c = $('cls').value, q = $('q').value.trim().toUpperCase();
+    return DATA.students.filter(function (s) { return (!c || clsOf(s.sid) === c) && (!q || s.sid.indexOf(q) >= 0); });
+  }
+
+  function renderTable() {
+    var n = DATA.levelNames.length, now = Date.now();
+    head($('tbl'), ['學生', '年級'].concat(DATA.levelNames.map(function (x, i) { return '第' + (i + 1) + '關 ' + x; }), ['最終關', '證書', '失敗次數', '最後活動']));
+    var list = rows();
+    list.forEach(function (s) {
+      var tr = document.createElement('tr');
+      cell(tr, s.sid); cell(tr, s.grade);
+      for (var i = 1; i <= n; i++) { var l = s.levels[i]; cell(tr, l ? stars(l.stars) : '—', l ? 'st' : 'no'); }
+      cell(tr, s.boss ? (s.boss.pass ? '通過 ' + s.boss.best + '/' + s.boss.total : '未過（' + s.boss.tries + ' 次）') : '—', s.boss ? (s.boss.pass ? 'ok' : 'bad') : 'no');
+      cell(tr, s.cert ? '✔' : '—', s.cert ? 'ok' : 'no');
+      cell(tr, s.fails || 0, s.fails >= 3 ? 'bad' : '');
+      cell(tr, fmt(s.last));
+      if (now - s.last > 14 * DAY) tr.className = 'old';
+      $('tbl').appendChild(tr);
+    });
+    if (!list.length) { var tr = document.createElement('tr'), td = document.createElement('td'); td.className = 'empty'; td.colSpan = n + 6; td.textContent = '冇符合嘅學生'; tr.appendChild(td); $('tbl').appendChild(tr); }
+  }
+
+  $('csv').onclick = function () {
+    var n = DATA.levelNames.length, out = [['學生', '班別', '年級'].concat(DATA.levelNames.map(function (x, i) { return '第' + (i + 1) + '關' + x + '星數'; }), ['最終關', '證書', '失敗次數', '最後活動'])];
+    rows().forEach(function (s) {
+      var r = [s.sid, clsOf(s.sid), s.grade];
+      for (var i = 1; i <= n; i++) r.push(s.levels[i] ? s.levels[i].stars : '');
+      r.push(s.boss ? (s.boss.pass ? '通過' : '未過') : '', s.cert ? 'Y' : '', s.fails || 0, fmt(s.last));
+      out.push(r);
+    });
+    var txt = '﻿' + out.map(function (r) { return r.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/csv;charset=utf-8' }));
+    a.download = '學生完成紀錄.csv'; document.body.appendChild(a); a.click(); a.remove();
+  };
+</script>
+</body>
+</html>

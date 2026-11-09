@@ -5,9 +5,31 @@
   const KEY = 'pixel-cyber-v1';
   const MAXHP = 20, HURT = 3;
 
-  let S = { name: '', grade: 3, done: {}, cert: null, mute: false };
+  let S = { name: '', sid: '', grade: 3, done: {}, cert: null, mute: false };
   try { Object.assign(S, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+
+  /* ---------- 上報（只送班別學號、關卡、星數；失敗會排隊重送） ---------- */
+
+  const QK = 'pixel-cyber-q';
+  const readQ = () => { try { return JSON.parse(localStorage.getItem(QK) || '[]'); } catch (e) { return []; } };
+  const writeQ = q => { try { localStorage.setItem(QK, JSON.stringify(q.slice(-100))); } catch (e) {} };
+  let sending = false;
+  function flush() {
+    const q = readQ();
+    if (!window.REPORT_URL || sending || !q.length) return;
+    sending = true;
+    fetch(window.REPORT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: q[0] })
+      .then(() => { writeQ(readQ().slice(1)); sending = false; flush(); })
+      .catch(() => { sending = false; });
+  }
+  function report(event, data) {
+    if (!window.REPORT_URL || !S.sid) return;
+    const q = readQ(); q.push(JSON.stringify(Object.assign({ sid: S.sid, grade: S.grade >= 5 ? 'P5-P6' : 'P3-P4', event }, data)));
+    writeQ(q); flush();
+  }
+  addEventListener('online', flush);
+  setTimeout(flush, 1500);
 
   const PAL = { k: '#05050f', w: '#ffffff', b: '#3b82f6', c: '#67e8f9', y: '#facc15', r: '#ef4444', g: '#22c55e', p: '#7c3aed', o: '#fb923c', G: '#9ca3af', d: '#111827' };
 
@@ -104,6 +126,11 @@
     const lab = h('label', '', '請輸入你的名字');
     const inp = h('input'); inp.maxLength = 8; inp.value = S.name;
     lab.append(inp); s.append(lab);
+    let sidInp = null;
+    if (window.REPORT_URL) {
+      const l2 = h('label', '', '班別學號（如 3A05）');
+      sidInp = h('input'); sidInp.maxLength = 8; sidInp.value = S.sid || ''; l2.append(sidInp); s.append(l2);
+    }
     const gr = h('div', 'grades'); gr.append(h('span', '', '年級'));
     const bs = [[3, 'P3-P4'], [5, 'P5-P6']].map(([g, t]) => {
       const b = h('button', S.grade === g ? 'on' : '', t);
@@ -112,7 +139,13 @@
     });
     s.append(gr);
     const go = h('button', '', '♥ 開始冒險');
-    go.onclick = () => { S.name = inp.value.trim().slice(0, 8) || '小勇者'; save(); A.sfx('select'); if (S.seen && Object.keys(S.done).length) showHub(); else prologue(); };
+    go.onclick = () => {
+      if (sidInp) {
+        const v = sidInp.value.replace(/\s/g, '').toUpperCase();
+        if (v && !/^[0-9A-Z]{2,8}$/.test(v)) { sidInp.style.borderColor = '#ef4444'; sidInp.focus(); return; }
+        S.sid = v;
+      }
+      S.name = inp.value.trim().slice(0, 8) || '小勇者'; save(); report('start'); A.sfx('select'); if (S.seen && Object.keys(S.done).length) showHub(); else prologue(); };
     s.append(go);
     app.append(s);
   }
@@ -178,7 +211,7 @@
         return;
       }
       clearTimeout(armed);
-      S = { name: '', grade: S.grade, done: {}, cert: null, mute: S.mute, noMusic: S.noMusic }; save(); showTitle();
+      S = { name: '', sid: S.sid, grade: S.grade, done: {}, cert: null, mute: S.mute, noMusic: S.noMusic }; save(); showTitle();
     };
     tools.append(mute, mm, reset);
     s.append(tools);
@@ -567,6 +600,7 @@
   }
 
   function gameOver(ctx, li) {
+    if (C.levels[li]) report('fail', { level: C.levels[li].id });
     onAdvance = null;
     setSpeaker(ctx, null);
     const b = ctx.box; b.innerHTML = ''; b.onclick = null;
@@ -589,6 +623,7 @@
     const r = h('div', 'result');
     const got = C.levels.filter(l => S.done[l.id] > 0).length;
     if (!ctx.shardShown) { ctx.shardShown = true; return scene(b, 'shard', { n: got, total: C.levels.length }, () => finishLevel(ctx, li)); }
+    report('level', { level: L.id, stars: st, wrong: ctx.wrong });
     const shr =h('div', 'shards'); shr.append(sprite('shard', 4), h('span', '', '得到「安全之鑰」碎片！　' + got + ' / ' + C.levels.length));
     r.append(h('div', 'big', '關卡完成！'), stars(st), shr, h('p', '', '答錯 ' + ctx.wrong + ' 次。' + (st < 3 ? '想拿滿星，可以再挑戰一次。' : '完美！')));
     const tl = h('div', 'tools');
@@ -630,6 +665,7 @@
   function bossEnd(ctx) {
     const n = C.boss.n, ok = !ctx.dead && ctx.right >= C.boss.pass;
     if (ok && !ctx.defeated) { ctx.defeated = true; return defeat(ctx, () => bossEnd(ctx)); }
+    report('boss', { pass: ok, right: ctx.right, total: n });
     setSpeaker(ctx, ok ? 'guide' : 'mon');
     const b = ctx.box; b.innerHTML = ''; b.onclick = null; onAdvance = null;
     const r = h('div', 'result');
@@ -639,6 +675,7 @@
     if (ok) {
       if (!S.cert) S.cert = { code: Math.random().toString(16).slice(2, 10).toUpperCase(), date: new Date().toLocaleDateString('zh-HK'), name: S.name || '小勇者', grade: S.grade >= 5 ? 'P5-P6' : 'P3-P4' };
       save();
+      if (!S.certSent) { S.certSent = true; save(); report('cert', { code: S.cert.code }); }
       const c = h('button', '', '♥ 繼續'); c.onclick = epilogue; tl.append(c);
       A.jingle('win');
     } else {

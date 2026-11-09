@@ -19,6 +19,10 @@
 | `style.css` | 像素風格 |
 | `serve.js` | 本地預覽用小伺服器 |
 
+## 老師後台
+
+學生紀錄上報同老師後台見 [`backend/README.md`](backend/README.md)（Google Apps Script，免費）。`config.js` 留空就唔上報。
+
 ## 改內容
 
 - 步驟類型：`say` 對話、`cards` 翻牌、`sort` 二選一分類、`ask` 單選題、`dodge` 閃避、
