@@ -177,3 +177,8 @@ body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; -we
 .note:empty { display: none; }
 .build button:disabled { opacity: .35; }
 .checks li:not(.ok) { color: #f87171; }
+
+/* 證書改名 */
+.certname { display: flex; gap: 10px; align-items: center; white-space: nowrap; }
+.certname input { font: inherit; color: #fff; background: #000; border: 4px solid #fff; padding: 4px 10px; width: 150px; border-radius: 0; }
+.limit { color: #facc15; font-size: 14px; margin: -6px 0 0; text-align: center; }

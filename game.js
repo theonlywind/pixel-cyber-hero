@@ -138,7 +138,7 @@
     s.append(sp);
     const lab = h('label', '', '請輸入你的名字');
     const inp = h('input'); inp.maxLength = 8; inp.value = S.name;
-    lab.append(inp); s.append(lab);
+    lab.append(inp); s.append(lab, h('p', 'limit', '名字最多 8 個字'));
     let codeInp = null;
     const msg = h('p', 'hint'); msg.style.color = '#f87171';
     if (window.REPORT_URL) {
@@ -767,6 +767,10 @@
     const s = h('div', 'screen cert');
     const cv = h('canvas'); cv.width = 640; cv.height = 440;
     s.append(cv);
+    const lab = h('label', 'certname', '證書上的名字');
+    const nameInp = h('input'); nameInp.maxLength = 8; nameInp.value = S.cert.name;
+    nameInp.oninput = () => { S.cert.name = nameInp.value.trim().slice(0, 8) || '小勇者'; save(); draw(); };
+    lab.append(nameInp); s.append(lab, h('p', 'limit', '名字最多 8 個字'));
     const tl = h('div', 'tools');
     const dl = h('button', '', '下載證書圖片');
     dl.onclick = () => { const a = document.createElement('a'); a.download = '網絡安全小勇者證書.png'; a.href = cv.toDataURL('image/png'); a.click(); };

@@ -9,9 +9,24 @@ const EVENTS = ['start', 'level', 'boss', 'cert', 'fail'];
 const LEVEL_NAMES = ['密碼城堡', '釣魚池塘', '個人資料森林', '禮儀廣場', 'AI 小屋']; // 同遊戲關卡次序一致
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 冇 I O 0 1，免得學生睇錯
 
+// 連接 Google Sheet：獨立 Apps Script 專案要喺「指令碼屬性」設 SHEET_ID；
+// 由 Sheet 嘅「擴充功能 → Apps Script」開嘅專案就唔使（自動連接）。
+function ss_() {
+  const id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+  const ss = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw new Error('未連接 Google Sheet：請喺指令碼屬性加 SHEET_ID（Sheet 網址 /d/ 同 /edit 中間嗰串）');
+  return ss;
+}
+
+// 喺編輯器揀 setup 按「執行」一次：授權、檢查連接、建立 records／sessions 工作表
+function setup() {
+  records_(); sessions_();
+  return ss_().getName();
+}
+
 // 攞工作表；如果欄位同而家版本唔同（舊版），改名保留，另開新表
 function sheet_(name, head) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = ss_();
   let sh = ss.getSheetByName(name);
   if (sh && sh.getRange(1, 1, 1, head.length).getValues()[0].join() !== head.join()) {
     sh.setName(name + '_舊版_' + Utilities.formatDate(new Date(), 'Asia/Hong_Kong', 'yyyyMMdd_HHmm'));

@@ -8,7 +8,10 @@
 2. 選單 **擴充功能 → Apps Script**。
 3. 將 `Code.gs` 全部內容貼入編輯器（取代預設嘅 `Code.gs`）。
 4. 左邊 **＋ → HTML**，檔名輸入 `admin`，將 `admin.html` 全部內容貼入。
-5. 設定老師密碼：左邊 **專案設定（齒輪）→ 指令碼屬性 → 新增**，名稱 `ADMIN_PASS`，值係你自己嘅密碼。
+5. 設定指令碼屬性：左邊 **專案設定（齒輪）→ 指令碼屬性 → 新增**
+   - `ADMIN_PASS`：老師密碼，你自己決定。
+   - `SHEET_ID`：**只有喺 script.google.com 開嘅獨立專案先需要**（錯誤訊息係「Cannot read properties of null (reading 'getSheetByName')」）。值係 Sheet 網址入面 `/d/` 同 `/edit` 中間嗰串。由 Sheet 嘅「擴充功能 → Apps Script」開嘅專案唔使加。
+   - 然後喺編輯器上面揀函數 **`setup`**，按 **執行** 一次：會要求授權（需要存取你嘅 Google Sheet），完成後 Sheet 會多咗 `records`、`sessions` 兩個工作表，執行記錄會顯示 Sheet 名，即代表連接成功。
 6. 右上 **部署 → 新增部署作業 → 類型：網頁應用程式**
    - 執行身分：**我**
    - 誰可以存取：**所有人**（學生唔使登入 Google）
