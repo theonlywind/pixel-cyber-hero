@@ -134,3 +134,33 @@ function getData(pass) {
   });
   return JSON.stringify({ sessions: sess.reverse(), students: Object.keys(map).map(k => map[k]), levelNames: LEVEL_NAMES, generated: Date.now() });
 }
+
+// 一鍵自我測試：喺編輯器揀 selfTest 按「執行」。會開一個測試課堂、模擬學生上報、檢查統計，
+// 最後刪走測試資料（records／sessions 入面 code 對應嘅行）。結果睇「執行記錄」或回傳文字。
+function selfTest() {
+  const pass = PropertiesService.getScriptProperties().getProperty('ADMIN_PASS');
+  const log = [];
+  const check = (cond, msg) => { log.push((cond ? '✔ ' : '✘ ') + msg); if (!cond) throw new Error(log.join('\n')); };
+  const code = createSession(pass, '自動測試');
+  try {
+    const post = o => doPost({ postData: { contents: JSON.stringify(Object.assign({ code: code, pid: 'abc123', name: '自動測試', grade: 'P3-P4' }, o)) } }).getContent();
+    check(/^[A-Z0-9]{4}$/.test(code), '開課堂，代號 ' + code);
+    check(findSession_(code, true) !== null, '代號驗證（遊戲用）通過');
+    check(post({ event: 'start' }) === 'ok', '上報 start');
+    check(post({ event: 'level', level: 1, stars: 3, wrong: 0 }) === 'ok', '上報 level');
+    check(post({ event: 'boss', pass: true, right: 8, total: 8 }) === 'ok', '上報 boss');
+    check(post({ code: 'ZZZZ', event: 'start' }) === 'closed', '假代號被拒絕');
+    const mine = JSON.parse(getData(pass)).students.filter(s => s.code === code);
+    check(mine.length === 1 && mine[0].levels[1] && mine[0].levels[1].stars === 3 && mine[0].boss && mine[0].boss.pass, '後台統計正確');
+    setSessionStatus(pass, code, 'closed');
+    check(findSession_(code, true) === null && post({ event: 'start' }) === 'closed', '結束課堂後拒收');
+    log.push('全部通過');
+  } finally {
+    [records_(), sessions_()].forEach(sh => {
+      const rows = sh.getDataRange().getValues();
+      for (let i = rows.length - 1; i >= 1; i--) if (rows[i][0] === code || rows[i][1] === code) sh.deleteRow(i + 1);
+    });
+    Logger.log(log.join('\n'));
+  }
+  return log.join('\n');
+}
