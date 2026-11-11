@@ -137,13 +137,13 @@
     sp.append(sprite('guide', 8), sprite('slime', 6), sprite('phish', 6));
     s.append(sp);
     const lab = h('label', '', '請輸入你的名字');
-    const inp = h('input'); inp.maxLength = 8; inp.value = S.name;
+    const inp = h('input'); inp.maxLength = 8; // 唔預填：共用裝置時，下一位同學唔會見到上一位嘅名
     lab.append(inp); s.append(lab, h('p', 'limit', '名字最多 8 個字'));
     let codeInp = null;
     const msg = h('p', 'hint'); msg.style.color = '#f87171';
     if (window.REPORT_URL) {
       const l2 = h('label', '', '課堂代號');
-      codeInp = h('input'); codeInp.maxLength = 4; codeInp.value = S.code || ''; codeInp.style.width = '110px'; codeInp.style.textTransform = 'uppercase';
+      codeInp = h('input'); codeInp.maxLength = 4; codeInp.style.width = '110px'; codeInp.style.textTransform = 'uppercase';
       l2.append(codeInp); s.append(l2);
     }
     const gr = h('div', 'grades'); gr.append(h('span', '', '年級'));
