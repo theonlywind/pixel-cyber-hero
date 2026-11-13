@@ -7,6 +7,7 @@ const REC_HEAD = ['時間', '課堂代號', '玩家', '裝置', '年級', '事�
 const SES_HEAD = ['課堂代號', '開始時間', '狀態', '備註'];
 const EVENTS = ['start', 'level', 'boss', 'cert', 'fail'];
 const LEVEL_NAMES = ['密碼城堡', '釣魚池塘', '個人資料森林', '禮儀廣場', 'AI 小屋']; // 同遊戲關卡次序一致
+const NO_SESSION = '-'; // 冇課堂代號嘅紀錄，代號欄寫呢個
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 冇 I O 0 1，免得學生睇錯
 
 // 連接 Google Sheet：獨立 Apps Script 專案要喺「指令碼屬性」設 SHEET_ID；
@@ -62,15 +63,22 @@ function doPost(e) {
     if (/^[=+\-@]/.test(name)) name = "'" + name;
     const pid = String(d.pid || '');
     if (EVENTS.indexOf(d.event) < 0 || !/^[0-9a-f]{6}$/.test(pid)) return text_('bad');
-    const ses = findSession_(d.code, true);
-    if (!ses) return text_('closed');
+    // 有課堂代號：一定要係仍然開放嘅課堂。冇代號：照寫入 Sheet（代號欄記 '-'），但老師頁唔顯示。
+    const hasCode = String(d.code || '') !== '';
+    const ses = hasCode ? findSession_(d.code, true) : null;
+    if (hasCode && !ses) return text_('closed');
+    if (!hasCode) { // 冇代號嘅網址係公開嘅，限制每個裝置每小時 200 個事件，免得有人灌爆 Sheet
+      const cache = CacheService.getScriptCache(), k = 'n_' + pid, n = Number(cache.get(k) || 0);
+      if (n >= 200) return text_('limit');
+      cache.put(k, String(n + 1), 3600);
+    }
     const grade = d.grade === 'P5-P6' ? 'P5-P6' : 'P3-P4';
     const pass = d.pass === true ? 'Y' : d.pass === false ? 'N' : '';
     const cert = /^[0-9A-F]{8}$/.test(String(d.certCode || '')) ? d.certCode : '';
     const lock = LockService.getScriptLock();
     lock.waitLock(10000);
     try {
-      records_().appendRow([new Date(), ses.code, name, pid, grade, d.event, num_(d.level), num_(d.stars), num_(d.wrong), num_(d.right), num_(d.total), pass, cert]);
+      records_().appendRow([new Date(), ses ? ses.code : NO_SESSION, name, pid, grade, d.event, num_(d.level), num_(d.stars), num_(d.wrong), num_(d.right), num_(d.total), pass, cert]);
     } finally { lock.releaseLock(); }
     return text_('ok');
   } catch (err) { return text_('err'); }
@@ -120,6 +128,7 @@ function getData(pass) {
   const sess = sessions_().getDataRange().getValues().slice(1).map(r => ({ code: r[0], created: +new Date(r[1]), status: r[2], note: r[3] || '' }));
   const map = {};
   records_().getDataRange().getValues().slice(1).forEach(r => {
+    if (r[1] === NO_SESSION) return; // 冇課堂代號：只留喺 Sheet，老師頁唔顯示
     const ts = +new Date(r[0]), key = r[1] + '|' + r[3] + '|' + r[2], ev = r[5];
     const s = map[key] || (map[key] = { code: r[1], name: String(r[2]), grade: r[4], levels: {}, boss: null, cert: false, fails: 0, last: ts });
     s.grade = r[4]; s.last = Math.max(s.last, ts);
@@ -150,7 +159,9 @@ function selfTest() {
     check(post({ event: 'level', level: 1, stars: 3, wrong: 0 }) === 'ok', '上報 level');
     check(post({ event: 'boss', pass: true, right: 8, total: 8 }) === 'ok', '上報 boss');
     check(post({ code: 'ZZZZ', event: 'start' }) === 'closed', '假代號被拒絕');
+    check(post({ code: '', pid: 'abc123', event: 'start' }) === 'ok', '冇代號都寫入 Sheet');
     const mine = JSON.parse(getData(pass)).students.filter(s => s.code === code);
+    check(JSON.parse(getData(pass)).students.every(s => s.code !== NO_SESSION), '冇代號嘅紀錄唔出現喺老師頁');
     check(mine.length === 1 && mine[0].levels[1] && mine[0].levels[1].stars === 3 && mine[0].boss && mine[0].boss.pass, '後台統計正確');
     setSessionStatus(pass, code, 'closed');
     check(findSession_(code, true) === null && post({ event: 'start' }) === 'closed', '結束課堂後拒收');
@@ -158,7 +169,7 @@ function selfTest() {
   } finally {
     [records_(), sessions_()].forEach(sh => {
       const rows = sh.getDataRange().getValues();
-      for (let i = rows.length - 1; i >= 1; i--) if (rows[i][0] === code || rows[i][1] === code) sh.deleteRow(i + 1);
+      for (let i = rows.length - 1; i >= 1; i--) if (rows[i][0] === code || rows[i][1] === code || (rows[i][1] === NO_SESSION && rows[i][3] === 'abc123')) sh.deleteRow(i + 1);
     });
     Logger.log(log.join('\n'));
   }

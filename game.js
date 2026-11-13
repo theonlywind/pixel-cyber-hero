@@ -26,8 +26,8 @@
       .catch(() => { sending = false; });
   }
   function report(event, data) {
-    if (!window.REPORT_URL || !S.code) return;
-    const q = readQ(); q.push(JSON.stringify(Object.assign({ code: S.code, pid: S.pid, name: S.name, grade: S.grade >= 5 ? 'P5-P6' : 'P3-P4', event }, data)));
+    if (!window.REPORT_URL) return; // 冇課堂代號都上報（寫入 Sheet，老師頁唔顯示）
+    const q = readQ(); q.push(JSON.stringify(Object.assign({ code: S.code || '', pid: S.pid, name: S.name, grade: S.grade >= 5 ? 'P5-P6' : 'P3-P4', event }, data)));
     writeQ(q); flush();
   }
   // 用 JSONP 驗證課堂代號（可以跨網域讀到結果）；網絡有問題會回傳 null
